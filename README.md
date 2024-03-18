@@ -21,6 +21,9 @@ A virtual environment is recommended to manage project dependencies and ensure a
 # Navigate to project directory
 cd path/to/project
 
+# Create a virtual environment named .venv
+python -m venv .venv
+
 # Activate the virtual environment
 source .venv/bin/activate
 

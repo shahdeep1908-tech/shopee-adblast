@@ -162,3 +162,5 @@ cython_debug/
 logs/*
 
 !logs/.gitkeep
+
+zyte-ca.crt
