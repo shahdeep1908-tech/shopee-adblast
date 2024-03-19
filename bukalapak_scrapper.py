@@ -1,7 +1,4 @@
 import os
-import threading
-import time
-from threading import Thread
 
 from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
@@ -9,7 +6,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service as ChromeService
-from twocaptcha import TwoCaptcha
 from webdriver_manager.chrome import ChromeDriverManager
 
 from custom_logging import setup_logger
@@ -29,54 +25,19 @@ chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resou
 chrome_options.add_argument(f'user-agent={USER_AGENT}')
 
 ZYTE_APIKEY = os.environ.get("ZYTE_APIKEY")
-ZYTE_PROXY_URL = f"http://{ZYTE_APIKEY}:@api.zyte.com:8011/"
-# ZYTE_PROXY_URL = f"http://{ZYTE_APIKEY}:@proxy.crawlera.com:8011/"
+# ZYTE_PROXY_URL = f"http://{ZYTE_APIKEY}:@api.zyte.com:8011/"
+ZYTE_PROXY_URL = f"http://{ZYTE_APIKEY}:@proxy.crawlera.com:8011/"
 
-# seleniumwire_options = {
-#     "proxy": {"http": ZYTE_PROXY_URL, "https": ZYTE_PROXY_URL, "no_proxy": ""}
-# }
-seleniumwire_options = {}
+seleniumwire_options = {
+    "proxy": {"http": ZYTE_PROXY_URL, "https": ZYTE_PROXY_URL, "no_proxy": ""}
+}
+# seleniumwire_options = {}
 
-
-class BrowserThread(Thread):
-    def __init__(self, link, tabs):
-        super(BrowserThread, self).__init__()
-        self.driver = webdriver.Chrome(seleniumwire_options=seleniumwire_options, options=chrome_options)
-        self.link = link
-        self.tabs = tabs
-
-    def run(self):
-        try:
-            self.open_link_in_tabs(self.link)
-        except Exception as e:
-            logger.error(f"Error occurred while processing link: {self.link} - {e}")
-
-    def open_link_in_tabs(self, link):
-        try:
-            logger.info(f"Opening link in multiple tabs: {link}")
-            print(f"Opening link in multiple tabs: {link}")
-            self.driver.get(link)
-            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.CLASS_NAME, "c-bl-media__image")))
-            for _ in range(self.tabs):  # Open specified tabs
-                self.driver.execute_script(f"window.open('{link}');")
-            time.sleep(15)  # Adjust the sleep time as needed
-            # Wait until all tabs are loaded
-            WebDriverWait(self.driver, 2*self.tabs).until(EC.number_of_windows_to_be((self.tabs)+1))  # Assuming the original window is included
-            # Close all tabs except the original window
-            original_window = self.driver.window_handles[0]
-            for window in self.driver.window_handles[1:]:
-                self.driver.switch_to.window(window)
-                self.driver.close()
-            # Switch back to the original window
-            self.driver.switch_to.window(original_window)
-            logger.info(f"All tabs for link {link} have been closed.")
-        except Exception as e:
-            print("Error occurred ::; ", e)
 
 class bukalapakSpider:
-    def __init__(self, product_keywords, browser_tabs):
-        self.keywords = product_keywords
-        self.browser_tabs = browser_tabs
+    def __init__(self, product_keyword, store_name):
+        self.keyword = product_keyword
+        self.store = store_name
         self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()),
                                        seleniumwire_options=seleniumwire_options, options=chrome_options)
         self.wait = WebDriverWait(self.driver, 5)
@@ -96,41 +57,48 @@ class bukalapakSpider:
         product_ads_links = self.driver.find_elements(By.XPATH, ADS_LINK_SELECTOR_PATH)
 
         links = []
+        product_ad_link = None
         PRODUCT_SELECTOR_PATH = ".//p[contains(@class, 'bl-text--ellipsis__2')]/a"
+        STORE_SELECTOR_PATH = ".//p[contains(@class, 'bl-product-card-new__store-name')]//a"
         for product_ad in product_ads_links:
-            link = product_ad.find_element(By.XPATH, PRODUCT_SELECTOR_PATH).get_attribute("href")
-            links.append(link)
-        return links
+            store_name_element = product_ad.find_element(By.XPATH, STORE_SELECTOR_PATH)
+            store_name_txt = store_name_element.get_attribute('innerHTML').strip().replace('\n', '')
+            if store_name_txt.upper().replace(" ", "") == self.store.upper().strip().replace(" ", ""):
+                product_ad_link = product_ad.find_element(By.XPATH, PRODUCT_SELECTOR_PATH).get_attribute("href")
+                print("product_ad ::: ", product_ad_link)
+                print("store_name_txt ::: ", store_name_txt)
+                break
+        if product_ad_link:
+            self.driver.get(product_ad_link)
+            self.scroll_to_bottom()
+        return product_ad_link
 
     def start_scraping(self):
         BASE_URL = "https://www.bukalapak.com/products?search[keywords]={}"
-        for keyword in self.keywords:
-            try:
-                url = BASE_URL.format(keyword)
-                self.driver.get(url)
-                logger.info(f"[STARTING] ### Keyword: {keyword} ### {url}")
-                self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'te-product-card')]")))
-                self.scroll_to_bottom()
-                links = self.extract_links()
-                for link in links:
-                    print("link ::: ", link)
-                    thread = BrowserThread(link, self.browser_tabs)
-                    thread.start()
-                # # Wait for all threads to complete before quitting the driver
-                # for thread in threading.enumerate():
-                #     if thread != threading.main_thread():
-                #         thread.join()
-                self.driver.quit()
-            except Exception as e:
-                print(f"ERROR OCCURRED ::: {e}")
+        try:
+            url = BASE_URL.format(self.keyword)
+            self.driver.get(url)
+            logger.info(f"[STARTING] ### {url}")
+            self.wait.until(EC.presence_of_element_located((By.XPATH, "//input[contains(@class, '-hint')]")))
+            self.scroll_to_bottom()
+            while True:
+                link = self.extract_links()
+                if not link:
+                    break
+                self.driver.back()
+            self.driver.quit()
+            logger.info(f"[FINISHED] ::: {self.keyword} ### AdBlast ")
+        except Exception as e:
+            print(f"ERROR OCCURRED ::: {e}")
 
     def close(self):
         self.driver.quit()
 
 
-keywords = input("Enter keywords seperated by commas: ").strip().split(",")
-tabs = int(input("Enter the total tabs of browser to open links : "))
+keywords = input("Enter keywords: ").strip()
+store_name = input("Enter Store Name: ").strip()
+
 # Usage
-spider = bukalapakSpider(keywords, tabs)
+spider = bukalapakSpider(keywords, store_name)
 spider.start_scraping()
 spider.close()

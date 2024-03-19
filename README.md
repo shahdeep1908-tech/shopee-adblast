@@ -1,13 +1,13 @@
 # AdBlast Scraper
 
 ## Overview
-The Shopee AdBlast Scraper is a Python project designed to scrape product advertisements and open multiple ad links simultaneously in multiple tabs.
+The Bukalapak AdBlast Scraper is a Python project designed to scrape product advertisements and open multiple ad links simultaneously in multiple tabs.
 
 ## Scope
-The project aims to automate the process of scraping product advertisements and opening multiple ad links in tabs, simulating high-volume user engagement. Key tasks include:
+The project aims to automate the process of scraping product advertisements and opening ad links multiple times, simulating high-volume user engagement. Key tasks include:
 
 Scraping product advertisements from specified sources.
-Opening each ad link in multiple tabs simultaneously (e.g., 50-100 tabs per link).
+Opening each ad link multiple times.
 
 ## Prerequisites
 Before setting up the project, ensure you have the following prerequisites installed on your system:
@@ -47,4 +47,14 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-Once the virtual environment is set up, you can run the `main.py` script to execute the scraping and tab-opening functionalities. Further instructions on usage and additional features will be provided in future updates to this README.
+Once the virtual environment is set up, you can run the `bukalapak_scrapper.py` script to execute the scraping and tab-opening functionalities.
+```python
+python bukalapak_scrapper.py
+```
+## Project Workflow Diagram
+
+*Figure 1: User Input -> Product keyword & Store-name*
+![user-input.png](images%2Fuser-input.png)
+
+*Figure 2: Bot Startup -> Redirect to product-page*
+![bot-startup.png](images%2Fbot-startup.png)
